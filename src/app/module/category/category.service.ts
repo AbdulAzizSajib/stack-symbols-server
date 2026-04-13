@@ -1,7 +1,7 @@
 import status from "http-status";
-import { Prisma } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { buildMeta, buildQuery } from "../../utils/queryBuilder";
 
 const toCategorySlug = (name: string): string => {
   return name
@@ -54,27 +54,20 @@ const createCategory = async (payload: {
   });
 };
 
-const listCategories = async (query: { page: number; limit: number; search?: string }) => {
-  const { page, limit, search } = query;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.CategoryWhereInput = {
-    ...(search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { slug: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : {}),
-  };
+const listCategories = async (query: Record<string, unknown>) => {
+  const { where, orderBy, skip, take, page, limit } = buildQuery(query, {
+    searchFields: ["name", "slug"],
+    sortableFields: ["name", "slug"],
+    defaultSortBy: "name",
+    defaultSortOrder: "asc",
+  });
 
   const [data, total] = await Promise.all([
     prisma.category.findMany({
       where,
       skip,
-      take: limit,
-      orderBy: { name: "asc" },
+      take,
+      orderBy,
       include: {
         _count: { select: { svgFiles: true } },
       },
@@ -82,15 +75,7 @@ const listCategories = async (query: { page: number; limit: number; search?: str
     prisma.category.count({ where }),
   ]);
 
-  return {
-    data,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  return { data, meta: buildMeta(total, page, limit) };
 };
 
 const getCategoryBySlug = async (slug: string) => {

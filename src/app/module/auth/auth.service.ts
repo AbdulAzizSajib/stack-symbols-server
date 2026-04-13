@@ -93,9 +93,6 @@ const loginUser = async (payload: ILoginUserPayload) => {
 const getMe = async (user: IRequestUser) => {
   const isUserExist = await prisma.user.findUnique({
     where: { id: user.userId },
-    include: {
-      profile: true,
-    },
   });
   if (!isUserExist) {
     throw new AppError(status.NOT_FOUND, "User not found");

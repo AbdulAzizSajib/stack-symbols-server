@@ -15,8 +15,17 @@ export const validateRequest = (
       return next(parsedResult.error);
     }
 
-    // Sanitizing the validated request part
-    (req[requestPart] as unknown) = parsedResult.data;
+    // Sanitize the validated request part
+    if (requestPart === "query") {
+      // req.query is read-only in newer Express — replace via defineProperty
+      Object.defineProperty(req, "query", {
+        value: parsedResult.data,
+        writable: true,
+        configurable: true,
+      });
+    } else {
+      (req[requestPart] as unknown) = parsedResult.data;
+    }
 
     return next();
   };

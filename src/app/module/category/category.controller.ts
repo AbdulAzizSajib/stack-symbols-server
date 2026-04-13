@@ -16,7 +16,7 @@ const createCategory = catchAsync(async (req: Request, res: Response) => {
 });
 
 const listCategories = catchAsync(async (req: Request, res: Response) => {
-  const result = await categoryService.listCategories(req.query as { page: number; limit: number; search?: string });
+  const result = await categoryService.listCategories(req.query as Record<string, unknown>);
 
   sendResponse(res, {
     httpStatusCode: status.OK,

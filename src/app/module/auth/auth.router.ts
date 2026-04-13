@@ -10,18 +10,18 @@ authRouter.post("/login", authController.loginUser);
 
 authRouter.get(
   "/me",
-  checkAuth(Role.ADMIN, Role.OWNER),
+  checkAuth(Role.ADMIN, Role.USER),
   authController.getMe,
 );
 authRouter.post("/refresh-token", authController.getNewToken);
 authRouter.post(
   "/change-password",
-  checkAuth(Role.ADMIN, Role.OWNER),
+  checkAuth(Role.ADMIN, Role.USER),
   authController.changePassword,
 );
 authRouter.post(
   "/logout",
-  checkAuth(Role.ADMIN, Role.OWNER),
+  checkAuth(Role.ADMIN, Role.USER),
   authController.logoutUser,
 );
 
