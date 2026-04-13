@@ -1,0 +1,207 @@
+// SkillSVG — Prisma Schema
+// Stack: Express + TypeScript + PostgreSQL
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ================================
+// AUTH (Better Auth — unchanged)
+// ================================
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  phone         String?
+  password      String?
+  role          Role     @default(USER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  accounts  Account[]
+  sessions  Session[]
+  svgFiles  SvgFile[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@map("verifications")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// ================================
+// SVG FILES (core)
+// ================================
+
+model SvgFile {
+  id          String    @id @default(cuid())
+  title       String?
+  slug        String    @unique
+  
+  // Raw & sanitized SVG
+  originalSvg String    @db.Text            // raw uploaded SVG content
+  sanitizedSvg String   @db.Text            // after script/event-handler removal
+  
+  // Storage
+  cdnUrl      String                        // Cloudinary / object storage public URL
+  fileSize    Int                           // bytes (original)
+  
+  // Validation metadata
+  isValid     Boolean   @default(false)
+  hasMalicious Boolean  @default(false)    // true if malicious content was found & stripped
+  validationLog String? @db.Text           // JSON string of validation details
+
+  // Visibility
+  visibility  Visibility @default(PUBLIC)
+  
+  // Stats
+  viewCount   Int        @default(0)
+  copyCount   Int        @default(0)       // how many times link/embed was copied
+  embedCount  Int        @default(0)       // how many times embedded externally
+
+  // Relations
+  ownerId     String?
+  owner       User?      @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  categoryId  String?
+  category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  tags        SvgTag[]
+  analytics   UsageEvent[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("svg_files")
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+// ================================
+// CATEGORIES
+// ================================
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  color       String?   // hex, e.g. "#3B82F6"
+  icon        String?
+
+  svgFiles    SvgFile[]
+
+  @@map("categories")
+}
+
+// ================================
+// TAGS
+// ================================
+
+model Tag {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  svgFiles SvgTag[]
+
+  @@map("tags")
+}
+
+model SvgTag {
+  svgFile   SvgFile @relation(fields: [svgFileId], references: [id], onDelete: Cascade)
+  svgFileId String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId     String
+
+  @@id([svgFileId, tagId])
+  @@map("svg_tags")
+}
+
+// ================================
+// USAGE ANALYTICS
+// ================================
+
+model UsageEvent {
+  id        String    @id @default(cuid())
+  svgFileId String
+  svgFile   SvgFile   @relation(fields: [svgFileId], references: [id], onDelete: Cascade)
+
+  eventType EventType             // view | copy_link | copy_embed | external_embed
+  referrer  String?
+  userAgent String?
+  ip        String?
+  country   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([svgFileId, eventType])
+  @@map("usage_events")
+}
+
+enum EventType {
+  VIEW
+  COPY_LINK
+  COPY_EMBED
+  EXTERNAL_EMBED
+}
