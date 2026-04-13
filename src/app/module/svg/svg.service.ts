@@ -4,6 +4,7 @@ import { deleteFileFromCloudinary, uploadFileToCloudinary } from "../../config/c
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { generateSvgSlug } from "../../utils/generateSvgSlug";
+import { buildMeta, buildQuery } from "../../utils/queryBuilder";
 import { sanitizeSvg } from "../../utils/svgSanitizer";
 import { validateSvg } from "../../utils/svgValidator";
 
@@ -170,32 +171,29 @@ const pasteSvg = async (
 };
 
 // ── List ───────────────────────────────────────────────────────
-const listSvgFiles = async (query: {
-  page: number;
-  limit: number;
-  search?: string;
-  categoryId?: string;
-  tag?: string;
-  visibility?: Visibility;
-  ownerId?: string;
-}) => {
-  const { page, limit, search, categoryId, tag, visibility, ownerId } = query;
-  const skip = (page - 1) * limit;
+const listSvgFiles = async (query: Record<string, unknown>) => {
+  const { where, orderBy, skip, take, page, limit } = buildQuery(query, {
+    searchFields: ["title", "slug"],
+    sortableFields: ["title", "createdAt", "viewCount", "copyCount"],
+    filterableFields: ["categoryId", "visibility", "ownerId"],
+    defaultSortBy: "createdAt",
+    defaultSortOrder: "desc",
+  });
 
-  const where: Prisma.SvgFileWhereInput = {
-    ...(search && { title: { contains: search, mode: "insensitive" } }),
-    ...(categoryId && { categoryId }),
-    ...(tag && { tags: { some: { tag: { slug: tag } } } }),
-    ...(visibility && { visibility }),
-    ...(ownerId && { ownerId }),
-  };
+  // tag filter uses a nested relation — add it manually
+  const tag = typeof query.tag === "string" ? query.tag.trim() : "";
+  if (tag) {
+    const and = (where.AND as Record<string, unknown>[]) ?? [];
+    and.push({ tags: { some: { tag: { slug: tag } } } });
+    where.AND = and;
+  }
 
   const [data, total] = await Promise.all([
     prisma.svgFile.findMany({
       where,
       skip,
-      take: limit,
-      orderBy: { createdAt: "desc" },
+      take,
+      orderBy,
       include: {
         tags: { include: { tag: true } },
         category: true,
@@ -205,10 +203,7 @@ const listSvgFiles = async (query: {
     prisma.svgFile.count({ where }),
   ]);
 
-  return {
-    data,
-    meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-  };
+  return { data, meta: buildMeta(total, page, limit) };
 };
 
 // ── Get single by slug ─────────────────────────────────────────

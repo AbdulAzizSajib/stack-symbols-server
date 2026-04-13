@@ -39,7 +39,7 @@ const pasteSvg = catchAsync(async (req: Request, res: Response) => {
 });
 
 const listSvgFiles = catchAsync(async (req: Request, res: Response) => {
-  const result = await svgService.listSvgFiles(req.query as any);
+  const result = await svgService.listSvgFiles(req.query as Record<string, unknown>);
 
   sendResponse(res, {
     httpStatusCode: status.OK,

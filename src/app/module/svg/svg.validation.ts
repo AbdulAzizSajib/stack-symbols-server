@@ -39,6 +39,8 @@ const listSvgQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   search: z.string().optional(),
+  sortBy: z.enum(["title", "createdAt", "viewCount", "copyCount"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
   categoryId: z.string().cuid().optional(),
   tag: z.string().optional(),
   visibility: z.nativeEnum(Visibility).optional(),
