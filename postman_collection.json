@@ -501,11 +501,23 @@
 								{
 									"key": "search",
 									"value": "",
-									"description": "Search term for category name"
+									"description": "Search in name and slug (case-insensitive)"
+								},
+								{
+									"key": "sortBy",
+									"value": "name",
+									"description": "Sort field: name, slug (default: name)",
+									"disabled": true
+								},
+								{
+									"key": "sortOrder",
+									"value": "asc",
+									"description": "Sort direction: asc, desc (default: asc)",
+									"disabled": true
 								}
 							]
 						},
-						"description": "Get a paginated list of all categories. Public endpoint."
+						"description": "Get a paginated list of all categories with search and sorting. Public endpoint."
 					},
 					"response": []
 				},
@@ -628,7 +640,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{apiBase}}/svg?page=1&limit=20&search=&categoryId=&tag=&visibility=PUBLIC&ownerId=",
+							"raw": "{{apiBase}}/svg?page=1&limit=20&search=",
 							"host": ["{{apiBase}}"],
 							"path": ["svg"],
 							"query": [
@@ -645,31 +657,47 @@
 								{
 									"key": "search",
 									"value": "",
-									"description": "Search in title and tags"
+									"description": "Search in title and slug (case-insensitive)"
+								},
+								{
+									"key": "sortBy",
+									"value": "createdAt",
+									"description": "Sort field: title, createdAt, viewCount, copyCount (default: createdAt)",
+									"disabled": true
+								},
+								{
+									"key": "sortOrder",
+									"value": "desc",
+									"description": "Sort direction: asc, desc (default: desc)",
+									"disabled": true
 								},
 								{
 									"key": "categoryId",
 									"value": "",
-									"description": "Filter by category ID (cuid)"
+									"description": "Filter by category ID (cuid)",
+									"disabled": true
 								},
 								{
 									"key": "tag",
 									"value": "",
-									"description": "Filter by tag"
+									"description": "Filter by tag slug",
+									"disabled": true
 								},
 								{
 									"key": "visibility",
 									"value": "PUBLIC",
-									"description": "Filter by visibility: PUBLIC, PRIVATE, or UNLISTED"
+									"description": "Filter by visibility: PUBLIC, PRIVATE, or UNLISTED",
+									"disabled": true
 								},
 								{
 									"key": "ownerId",
 									"value": "",
-									"description": "Filter by owner user ID"
+									"description": "Filter by owner user ID",
+									"disabled": true
 								}
 							]
 						},
-						"description": "Get a paginated list of SVG files with optional filters. Public endpoint."
+						"description": "Get a paginated list of SVG files with search, sorting, and filters. Public endpoint."
 					},
 					"response": []
 				},
