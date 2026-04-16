@@ -10,7 +10,11 @@ const svgRouter: Router = Router();
 
 // Public
 svgRouter.get("/", validateRequest(SvgValidation.listSvgQuerySchema, "query"), svgController.listSvgFiles);
-svgRouter.get("/icons/:slug", svgController.serveSvgIcon);
+svgRouter.get(
+  "/icons/:slug",
+  validateRequest(SvgValidation.serveIconQuerySchema, "query"),
+  svgController.serveSvgIcon,
+);
 svgRouter.get("/:slug", svgController.getSvgBySlug);
 
 // Semi-public (guest allowed, ownerId optional)

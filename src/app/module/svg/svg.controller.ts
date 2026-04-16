@@ -64,7 +64,16 @@ const getSvgBySlug = catchAsync(async (req: Request, res: Response) => {
 
 const serveSvgIcon = catchAsync(async (req: Request, res: Response) => {
   const slug = getSlugParam(req);
-  const svgContent = await svgService.getSvgIconContentBySlug(slug);
+  const { w, h } = req.query as { w?: number; h?: number };
+
+  const formatOptions: { width?: number; height?: number } = {};
+  if (w !== undefined) formatOptions.width = w;
+  if (h !== undefined) formatOptions.height = h;
+
+  const svgContent = await svgService.getSvgIconContentBySlug(
+    slug,
+    Object.keys(formatOptions).length > 0 ? formatOptions : undefined,
+  );
 
   res.setHeader("Content-Type", "image/svg+xml");
   res.setHeader("Cache-Control", "public, max-age=31536000");

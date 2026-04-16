@@ -803,6 +803,32 @@
           "response": []
         },
         {
+          "name": "Serve SVG Icon (Resized)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiBase}}/svg/icons/{{svgSlug}}?w=128&h=128",
+              "host": ["{{apiBase}}"],
+              "path": ["svg", "icons", "{{svgSlug}}"],
+              "query": [
+                {
+                  "key": "w",
+                  "value": "128",
+                  "description": "Width in px (1-2048)"
+                },
+                {
+                  "key": "h",
+                  "value": "128",
+                  "description": "Height in px (1-2048)"
+                }
+              ]
+            },
+            "description": "Serve SVG with custom width and height applied via query params."
+          },
+          "response": []
+        },
+        {
           "name": "Upload SVG File",
           "event": [
             {

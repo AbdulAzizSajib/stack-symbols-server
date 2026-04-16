@@ -39,6 +39,11 @@ const trackEventSchema = z.object({
   type: z.enum(["link", "embed", "external_embed"]),
 });
 
+const serveIconQuerySchema = z.object({
+  w: z.coerce.number().int().min(1).max(2048).optional(),
+  h: z.coerce.number().int().min(1).max(2048).optional(),
+});
+
 const listSvgQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
@@ -57,4 +62,5 @@ export const SvgValidation = {
   updateSvgSchema,
   trackEventSchema,
   listSvgQuerySchema,
+  serveIconQuerySchema,
 };

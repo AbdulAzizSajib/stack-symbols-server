@@ -5,6 +5,7 @@ import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { generateSvgSlug } from "../../utils/generateSvgSlug";
 import { buildMeta, buildQuery } from "../../utils/queryBuilder";
+import { formatSvg, SvgFormatOptions } from "../../utils/svgFormatter";
 import { sanitizeSvg } from "../../utils/svgSanitizer";
 import { validateSvg } from "../../utils/svgValidator";
 
@@ -233,7 +234,7 @@ const getSvgBySlug = async (slug: string, trackView = true) => {
   };
 };
 
-const getSvgIconContentBySlug = async (slug: string) => {
+const getSvgIconContentBySlug = async (slug: string, formatOptions?: SvgFormatOptions) => {
   const svgFile = await prisma.svgFile.findUnique({
     where: { slug },
     select: { id: true, cdnUrl: true },
@@ -254,7 +255,7 @@ const getSvgIconContentBySlug = async (slug: string) => {
     prisma.usageEvent.create({ data: { svgFileId: svgFile.id, eventType: EventType.VIEW } }),
   ]);
 
-  return svgContent;
+  return formatOptions ? formatSvg(svgContent, formatOptions) : svgContent;
 };
 
 // ── Track copy events ──────────────────────────────────────────
