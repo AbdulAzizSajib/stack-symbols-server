@@ -27,9 +27,9 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  accounts  Account[]
-  sessions  Session[]
-  svgFiles  SvgFile[]
+  accounts Account[]
+  sessions Session[]
+  svgFiles SvgFile[]
 
   @@map("users")
 }
@@ -90,44 +90,40 @@ enum Role {
 // ================================
 
 model SvgFile {
-  id          String    @id @default(cuid())
-  title       String?
-  slug        String    @unique
-  
+  id    String  @id @default(cuid())
+  title String?
+  slug  String  @unique
+
   // Raw & sanitized SVG
-  originalSvg String    @db.Text            // raw uploaded SVG content
-  sanitizedSvg String   @db.Text            // after script/event-handler removal
-  
+  originalSvg  String @db.Text // raw uploaded SVG content
+  sanitizedSvg String @db.Text // after script/event-handler removal
+
   // Storage
-  cdnUrl      String                        // Cloudinary / object storage public URL
-  fileSize    Int                           // bytes (original)
-  
+  cdnUrl   String // Cloudinary / object storage public URL
+  fileSize Int // bytes (original)
+
   // Validation metadata
-  isValid     Boolean   @default(false)
-  hasMalicious Boolean  @default(false)    // true if malicious content was found & stripped
-  validationLog String? @db.Text           // JSON string of validation details
+  isValid       Boolean @default(false)
+  hasMalicious  Boolean @default(false) // true if malicious content was found & stripped
+  validationLog String? @db.Text // JSON string of validation details
 
   // Visibility
-  visibility  Visibility @default(PUBLIC)
-  
+  visibility Visibility @default(PUBLIC)
+
   // Stats
-  viewCount   Int        @default(0)
-  copyCount   Int        @default(0)       // how many times link/embed was copied
-  embedCount  Int        @default(0)       // how many times embedded externally
+  viewCount  Int @default(0)
+  copyCount  Int @default(0) // how many times link/embed was copied
+  embedCount Int @default(0) // how many times embedded externally
 
-  // Relations
-  ownerId     String?
-  owner       User?      @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  analytics UsageEvent[]
 
-  categoryId  String?
-  category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
 
-  tags        SvgTag[]
-  analytics   UsageEvent[]
-
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
+  @@index([createdAt])
+  @@index([slug])
   @@map("svg_files")
 }
 
@@ -138,56 +134,15 @@ enum Visibility {
 }
 
 // ================================
-// CATEGORIES
-// ================================
-
-model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
-  description String?
-  color       String?   // hex, e.g. "#3B82F6"
-  icon        String?
-
-  svgFiles    SvgFile[]
-
-  @@map("categories")
-}
-
-// ================================
-// TAGS
-// ================================
-
-model Tag {
-  id   String @id @default(cuid())
-  name String @unique
-  slug String @unique
-
-  svgFiles SvgTag[]
-
-  @@map("tags")
-}
-
-model SvgTag {
-  svgFile   SvgFile @relation(fields: [svgFileId], references: [id], onDelete: Cascade)
-  svgFileId String
-  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  tagId     String
-
-  @@id([svgFileId, tagId])
-  @@map("svg_tags")
-}
-
-// ================================
 // USAGE ANALYTICS
 // ================================
 
 model UsageEvent {
-  id        String    @id @default(cuid())
+  id        String  @id @default(cuid())
   svgFileId String
-  svgFile   SvgFile   @relation(fields: [svgFileId], references: [id], onDelete: Cascade)
+  svgFile   SvgFile @relation(fields: [svgFileId], references: [id], onDelete: Cascade)
 
-  eventType EventType             // view | copy_link | copy_embed | external_embed
+  eventType EventType // view | copy_link | copy_embed | external_embed
   referrer  String?
   userAgent String?
   ip        String?

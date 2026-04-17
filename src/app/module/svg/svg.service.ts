@@ -11,12 +11,9 @@ import { validateSvg } from "../../utils/svgValidator";
 
 interface SvgInputPayload {
   svgContent: string;
-  title?: string;
-  visibility?: Visibility;
-  categoryId?: string;
-  tags?: string[];
-  ownerId?: string;
-  sourceFileName?: string;
+  title?: string | undefined;
+  visibility?: Visibility | undefined;
+  sourceFileName?: string | undefined;
 }
 
 const generateUniqueSvgSlug = async (slugInput?: string) => {
@@ -45,9 +42,6 @@ const processSvgContent = async (payload: SvgInputPayload) => {
     svgContent,
     title,
     visibility = Visibility.PUBLIC,
-    categoryId,
-    tags,
-    ownerId,
     sourceFileName,
   } = payload;
 
@@ -84,31 +78,7 @@ const processSvgContent = async (payload: SvgInputPayload) => {
     sanitizedCount: removedCount,
   });
 
-  // 5. Resolve tags
-  const tagCreatePayload = tags?.map((name) => ({
-    tag: {
-      connectOrCreate: {
-        where: { slug: name.toLowerCase().replace(/\s+/g, "-") },
-        create: {
-          name,
-          slug: name.toLowerCase().replace(/\s+/g, "-"),
-        },
-      },
-    },
-  }));
-
-  if (categoryId) {
-    const categoryExists = await prisma.category.findUnique({
-      where: { id: categoryId },
-      select: { id: true },
-    });
-
-    if (!categoryExists) {
-      throw new AppError(status.NOT_FOUND, "Category not found");
-    }
-  }
-
-  // 6. Persist
+  // 5. Persist
   const createData: Prisma.SvgFileCreateInput = {
     title: title ?? null,
     slug,
@@ -120,25 +90,17 @@ const processSvgContent = async (payload: SvgInputPayload) => {
     hasMalicious: validation.hasMalicious,
     validationLog,
     visibility,
-    ...(ownerId ? { owner: { connect: { id: ownerId } } } : {}),
-    ...(categoryId ? { category: { connect: { id: categoryId } } } : {}),
-    ...(tagCreatePayload ? { tags: { create: tagCreatePayload } } : {}),
   };
 
   return prisma.svgFile.create({
     data: createData,
-    include: {
-      tags: { include: { tag: true } },
-      category: true,
-    },
   });
 };
 
 // ── Upload via multipart file ──────────────────────────────────
 const uploadSvgFile = async (
   file: Express.Multer.File,
-  body: { title?: string; visibility?: Visibility; categoryId?: string; tags?: string[] },
-  ownerId?: string,
+  body: { title?: string; visibility?: Visibility },
 ) => {
   if (!file) throw new AppError(status.BAD_REQUEST, "SVG file is required");
 
@@ -150,25 +112,47 @@ const uploadSvgFile = async (
     svgContent: file.buffer.toString("utf8"),
     ...body,
     sourceFileName: file.originalname,
-    ...(ownerId !== undefined ? { ownerId } : {}),
   });
 };
 
-// ── Upload via paste ───────────────────────────────────────────
-const pasteSvg = async (
-  body: {
+// ── Bulk upload via paste ────────────────────────────────────────
+const bulkPasteSvg = async (
+  items: Array<{
     svgContent: string;
     title?: string;
     visibility?: Visibility;
-    categoryId?: string;
-    tags?: string[];
-  },
-  ownerId?: string,
+  }>,
 ) => {
-  return processSvgContent({
-    ...body,
-    ...(ownerId !== undefined ? { ownerId } : {}),
+  // Process in parallel for faster upload
+  const uploadPromises = items.map(async (item, index) => {
+    try {
+      const result = await processSvgContent({
+        svgContent: item.svgContent,
+        title: item.title,
+        visibility: item.visibility,
+      });
+      return { index, success: true as const, data: result };
+    } catch (error) {
+      return {
+        index,
+        success: false as const,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
   });
+
+  const settled = await Promise.all(uploadPromises);
+
+  const results = settled.filter((r) => r.success);
+  const errors = settled.filter((r) => !r.success);
+
+  return {
+    total: items.length,
+    successful: results.length,
+    failed: errors.length,
+    results,
+    errors,
+  };
 };
 
 // ── List ───────────────────────────────────────────────────────
@@ -176,29 +160,32 @@ const listSvgFiles = async (query: Record<string, unknown>) => {
   const { where, orderBy, skip, take, page, limit } = buildQuery(query, {
     searchFields: ["title", "slug"],
     sortableFields: ["title", "createdAt", "viewCount", "copyCount"],
-    filterableFields: ["categoryId", "visibility", "ownerId"],
+    filterableFields: ["visibility"],
     defaultSortBy: "createdAt",
     defaultSortOrder: "desc",
+    maxLimit: 200,
   });
 
-  // tag filter uses a nested relation — add it manually
-  const tag = typeof query.tag === "string" ? query.tag.trim() : "";
-  if (tag) {
-    const and = (where.AND as Record<string, unknown>[]) ?? [];
-    and.push({ tags: { some: { tag: { slug: tag } } } });
-    where.AND = and;
-  }
-
+  // Optimize: Only fetch necessary fields
   const [data, total] = await Promise.all([
     prisma.svgFile.findMany({
       where,
       skip,
       take,
       orderBy,
-      include: {
-        tags: { include: { tag: true } },
-        category: true,
-        owner: { select: { id: true, name: true, image: true } },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        cdnUrl: true,
+        fileSize: true,
+        isValid: true,
+        visibility: true,
+        viewCount: true,
+        copyCount: true,
+        embedCount: true,
+        createdAt: true,
+        updatedAt: true,
       },
     }),
     prisma.svgFile.count({ where }),
@@ -211,11 +198,6 @@ const listSvgFiles = async (query: Record<string, unknown>) => {
 const getSvgBySlug = async (slug: string, trackView = true) => {
   const svgFile = await prisma.svgFile.findUnique({
     where: { slug },
-    include: {
-      tags: { include: { tag: true } },
-      category: true,
-      owner: { select: { id: true, name: true, image: true } },
-    },
   });
 
   if (!svgFile) throw new AppError(status.NOT_FOUND, "SVG not found");
@@ -282,55 +264,23 @@ const trackCopyEvent = async (slug: string, eventType: EventType) => {
 // ── Update metadata ────────────────────────────────────────────
 const updateSvgFile = async (
   slug: string,
-  payload: { title?: string; visibility?: Visibility; categoryId?: string | null; tags?: string[] },
-  requesterId: string,
+  payload: { title?: string; visibility?: Visibility },
 ) => {
   const svgFile = await prisma.svgFile.findUnique({ where: { slug } });
   if (!svgFile) throw new AppError(status.NOT_FOUND, "SVG not found");
 
-  if (svgFile.ownerId && svgFile.ownerId !== requesterId) {
-    throw new AppError(status.FORBIDDEN, "You do not own this SVG");
-  }
-
-  const { tags, ...rest } = payload;
-
-  // Rebuild tags if provided
-  if (tags) {
-    await prisma.svgTag.deleteMany({ where: { svgFileId: svgFile.id } });
-  }
-
   return prisma.svgFile.update({
     where: { slug },
     data: {
-      ...rest,
-      ...(tags && {
-        tags: {
-          create: tags.map((name) => ({
-            tag: {
-              connectOrCreate: {
-                where: { slug: name.toLowerCase().replace(/\s+/g, "-") },
-                create: { name, slug: name.toLowerCase().replace(/\s+/g, "-") },
-              },
-            },
-          })),
-        },
-      }),
-    },
-    include: {
-      tags: { include: { tag: true } },
-      category: true,
+      ...payload,
     },
   });
 };
 
 // ── Delete ─────────────────────────────────────────────────────
-const deleteSvgFile = async (slug: string, requesterId: string, requesterRole: string) => {
+const deleteSvgFile = async (slug: string) => {
   const svgFile = await prisma.svgFile.findUnique({ where: { slug } });
   if (!svgFile) throw new AppError(status.NOT_FOUND, "SVG not found");
-
-  if (requesterRole !== "ADMIN" && svgFile.ownerId !== requesterId) {
-    throw new AppError(status.FORBIDDEN, "You do not own this SVG");
-  }
 
   // Delete DB record first; Cloudinary cleanup is best-effort
   await prisma.svgFile.delete({ where: { slug } });
@@ -344,7 +294,7 @@ const deleteSvgFile = async (slug: string, requesterId: string, requesterRole: s
 
 export const svgService = {
   uploadSvgFile,
-  pasteSvg,
+  bulkPasteSvg,
   listSvgFiles,
   getSvgBySlug,
   getSvgIconContentBySlug,

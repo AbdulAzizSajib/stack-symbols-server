@@ -17,7 +17,7 @@ const getSlugParam = (req: Request): string => {
 };
 
 const uploadSvgFile = catchAsync(async (req: Request, res: Response) => {
-  const result = await svgService.uploadSvgFile(req.file!, req.body, req.user?.userId);
+  const result = await svgService.uploadSvgFile(req.file!, req.body);
 
   sendResponse(res, {
     httpStatusCode: status.CREATED,
@@ -27,13 +27,14 @@ const uploadSvgFile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const pasteSvg = catchAsync(async (req: Request, res: Response) => {
-  const result = await svgService.pasteSvg(req.body, req.user?.userId);
+const bulkPasteSvg = catchAsync(async (req: Request, res: Response) => {
+  const { items } = req.body;
+  const result = await svgService.bulkPasteSvg(items);
 
   sendResponse(res, {
     httpStatusCode: status.CREATED,
     success: true,
-    message: "SVG processed successfully",
+    message: `Bulk upload completed: ${result.successful} successful, ${result.failed} failed`,
     data: result,
   });
 });
@@ -102,7 +103,7 @@ const trackCopy = catchAsync(async (req: Request, res: Response) => {
 
 const updateSvgFile = catchAsync(async (req: Request, res: Response) => {
   const slug = getSlugParam(req);
-  const result = await svgService.updateSvgFile(slug, req.body, req.user!.userId);
+  const result = await svgService.updateSvgFile(slug, req.body);
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -114,11 +115,7 @@ const updateSvgFile = catchAsync(async (req: Request, res: Response) => {
 
 const deleteSvgFile = catchAsync(async (req: Request, res: Response) => {
   const slug = getSlugParam(req);
-  const result = await svgService.deleteSvgFile(
-    slug,
-    req.user!.userId,
-    req.user!.role,
-  );
+  const result = await svgService.deleteSvgFile(slug);
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -130,7 +127,7 @@ const deleteSvgFile = catchAsync(async (req: Request, res: Response) => {
 
 export const svgController = {
   uploadSvgFile,
-  pasteSvg,
+  bulkPasteSvg,
   listSvgFiles,
   serveSvgIcon,
   getSvgBySlug,

@@ -26,9 +26,9 @@ svgRouter.post(
 );
 
 svgRouter.post(
-  "/paste",
+  "/paste-bulk",
   validateRequest(SvgValidation.pasteSvgSchema),
-  svgController.pasteSvg,
+  svgController.bulkPasteSvg,
 );
 
 // Track copy events (no auth needed)

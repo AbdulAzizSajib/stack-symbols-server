@@ -8,6 +8,7 @@ interface QueryBuilderConfig {
   filterableFields?: string[];
   defaultSortBy?: string;
   defaultSortOrder?: SortOrder;
+  maxLimit?: number;
 }
 
 interface QueryParams {
@@ -35,11 +36,12 @@ export const buildQuery = (query: QueryParams, config: QueryBuilderConfig = {}):
     filterableFields = [],
     defaultSortBy = "id",
     defaultSortOrder = "desc",
+    maxLimit = 200,
   } = config;
 
   // Pagination
   const page = Math.max(Number(query.page) || 1, 1);
-  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 100);
+  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), maxLimit);
   const skip = (page - 1) * limit;
 
   // Sorting
