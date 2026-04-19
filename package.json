@@ -33,7 +33,6 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
-    "@types/geoip-lite": "^1.4.4",
     "better-auth": "^1.5.6",
     "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",
@@ -41,7 +40,6 @@
     "dotenv": "^17.4.0",
     "ejs": "^5.0.1",
     "express": "^5.2.1",
-    "geoip-lite": "^2.0.1",
     "http-status": "^2.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",

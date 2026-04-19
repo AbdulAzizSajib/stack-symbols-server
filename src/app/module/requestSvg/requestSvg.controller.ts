@@ -4,19 +4,15 @@ import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
 import { requestSvgService } from "./requestSvg.service";
 import AppError from "../../errorHelpers/AppError";
-import geoip from "geoip-lite";
-
 const createRequest = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body;
 
-// const ip = req.ip || "0.0.0.0";
-const ip =
-  (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
-  req.socket.remoteAddress ||
-  req.ip ||
-  "0.0.0.0";
-const geo = geoip.lookup(ip);
-  const country = geo?.country || "Unknown";
+  const ip =
+    (req.headers["x-real-ip"] as string) ||
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+    req.ip ||
+    "0.0.0.0";
+  const country = (req.headers["x-vercel-ip-country"] as string) || "Unknown";
 
   const result = await requestSvgService.createRequest(payload, {
     ip,
